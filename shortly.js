@@ -54,63 +54,6 @@ function(req, res) {
   else res.redirect('login');
 });
 
-app.get('/login',
-function(req, res) {
-  res.render('login');
-});
-
-app.get('/logout',
-  function(req, res) {
-    req.session.destroy(function() {
-      res.redirect('/');
-    })
-  });
-
-app.get('/signup',
-function(req, res) {
-    res.render('signup');
-});
-
-app.post('/signup',
-function(req, res) {
-  var newName = req.body.username;
-  var newPass = req.body.password;
-
-  new User({ username: newName, password: newPass }).fetch().then(function(found) {
-    if (found) {
-      res.send(200, found.attributes);
-    } else {
-        var user = new User({
-          username: newName,
-          password: newPass
-        });
-
-        user.save().then(function(newUser) {
-          Users.add(newUser);
-          res.redirect('/');
-        });
-      };
-    });
-});
-
-app.post('/login',
-  function(req, res) {
-    var user = req.body.username;
-    var pass = req.body.password;
-
-    new User({username: user}).fetch().then(function(found) {
-      if (found) {
-        bcrypt.compare(pass, found.attributes.password, function(err, result) {
-          if (result) {
-            req.session.user = uid(48);
-            res.redirect('/');
-          }
-        })
-      }
-      else res.redirect('/login');
-    })
-  });
-
 app.post('/links',
 function(req, res) {
   var uri = req.body.url;
@@ -148,8 +91,63 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+app.get('/login',
+function(req, res) {
+  res.render('login');
+});
+
+app.get('/signup',
+function(req, res) {
+    res.render('signup');
+});
+
+app.post('/login',
+  function(req, res) {
+    var user = req.body.username;
+    var pass = req.body.password;
+
+    new User({username: user}).fetch().then(function(found) {
+      if (found) {
+        bcrypt.compare(pass, found.attributes.password, function(err, result) {
+          if (result) {
+            req.session.user = uid(48);
+            res.redirect('/');
+          }
+        })
+      }
+      else res.redirect('/login');
+    })
+  });
 
 
+app.post('/signup',
+function(req, res) {
+  var newName = req.body.username;
+  var newPass = req.body.password;
+
+  new User({ username: newName, password: newPass }).fetch().then(function(found) {
+    if (found) {
+      res.send(200, found.attributes);
+    } else {
+        var user = new User({
+          username: newName,
+          password: newPass
+        });
+
+        user.save().then(function(newUser) {
+          Users.add(newUser);
+          res.redirect('/');
+        });
+      };
+    });
+});
+
+app.get('/logout',
+  function(req, res) {
+    req.session.destroy(function() {
+      res.redirect('/');
+    })
+  });
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
