@@ -2,8 +2,9 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
-
+var session = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
+var uid = require('uid2');
 var db = require('./app/config');
 var Users = require('./app/collections/users');
 var User = require('./app/models/user');
@@ -21,26 +22,96 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(session({
+  // genid: function(req) {
+  //   return uid(48); // use UUIDs for session IDs
+  // },
+  resave: false,
+  saveUninitialized: true,
+  secret: 'keyboard cat'
+}))
 
 
-app.get('/', 
+app.get('/',
 function(req, res) {
-  res.render('index');
+  if (req.session.user) res.render('index');
+  else res.redirect('login');
 });
 
-app.get('/create', 
+app.get('/create',
 function(req, res) {
-  res.render('index');
+  if (req.session.user) res.render('index');
+  else res.redirect('login');
 });
 
-app.get('/links', 
+app.get('/links',
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
+  if (req.session.user){
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    });
+  }
+  else res.redirect('login');
+});
+
+app.get('/login',
+function(req, res) {
+  res.render('login');
+});
+
+app.get('/logout',
+  function(req, res) {
+    req.session.destroy(function() {
+      res.redirect('/');
+    })
   });
+
+app.get('/signup',
+function(req, res) {
+    res.render('signup');
 });
 
-app.post('/links', 
+app.post('/signup',
+function(req, res) {
+  var newName = req.body.username;
+  var newPass = req.body.password;
+
+  new User({ username: newName, password: newPass }).fetch().then(function(found) {
+    if (found) {
+      res.send(200, found.attributes);
+    } else {
+        var user = new User({
+          username: newName,
+          password: newPass
+        });
+
+        user.save().then(function(newUser) {
+          Users.add(newUser);
+          res.redirect('/');
+        });
+      };
+    });
+});
+
+app.post('/login',
+  function(req, res) {
+    var user = req.body.username;
+    var pass = req.body.password;
+
+    new User({username: user}).fetch().then(function(found) {
+      if (found) {
+        bcrypt.compare(pass, found.attributes.password, function(err, result) {
+          if (result) {
+            req.session.user = uid(48);
+            res.redirect('/');
+          }
+        })
+      }
+      else res.redirect('/login');
+    })
+  });
+
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
@@ -77,7 +148,6 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-
 
 
 /************************************************************/
