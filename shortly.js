@@ -34,24 +34,19 @@ app.use(session({
 
 app.get('/',
 function(req, res) {
-  if (req.session.user) res.render('index');
-  else res.redirect('login');
+  checkUser(req, res, 'index');
 });
 
 app.get('/create',
 function(req, res) {
-  if (req.session.user) res.render('index');
-  else res.redirect('login');
+  checkUser(req, res, 'index');
 });
 
 app.get('/links',
 function(req, res) {
-  if (req.session.user){
-    Links.reset().fetch().then(function(links) {
+    Links.reset().query({where: {user_id: req.session.user}}).fetch().then(function(links) {
       res.send(200, links.models);
     });
-  }
-  else res.redirect('login');
 });
 
 app.post('/links',
@@ -63,7 +58,7 @@ function(req, res) {
     return res.send(404);
   }
 
-  new Link({ url: uri }).fetch().then(function(found) {
+  new Link({ url: uri, user_id: req.session.user }).fetch().then(function(found) {
     if (found) {
       res.send(200, found.attributes);
     } else {
@@ -76,7 +71,8 @@ function(req, res) {
         var link = new Link({
           url: uri,
           title: title,
-          base_url: req.headers.origin
+          base_url: req.headers.origin,
+          user_id: req.session.user
         });
 
         link.save().then(function(newLink) {
@@ -88,6 +84,14 @@ function(req, res) {
   });
 });
 
+
+function checkUser(req, res, page){
+  if(req.session.user){
+    res.render(page);
+  } else{
+    res.redirect('login');
+  }
+}
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
@@ -110,7 +114,8 @@ app.post('/login',
       if (found) {
         bcrypt.compare(pass, found.attributes.password, function(err, result) {
           if (result) {
-            req.session.user = uid(48);
+            req.session.id = uid(48);
+            req.session.user = found.attributes.id;
             res.redirect('/');
           }
         })
